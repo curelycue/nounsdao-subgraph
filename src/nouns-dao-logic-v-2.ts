@@ -94,3 +94,86 @@ export function handleVoteCast(event: VoteCast): void {}
 export function handleVotingDelaySet(event: VotingDelaySet): void {}
 
 export function handleVotingPeriodSet(event: VotingPeriodSet): void {}
+
+export function getOrCreateVote(
+  id: string,
+  createIfNotFound: boolean = true,
+  save: boolean = false,
+): Vote {
+  let vote = Vote.load(id);
+
+  if (vote == null && createIfNotFound) {
+    vote = new Vote(id);
+
+    if (save) {
+      vote.save();
+    }
+  }
+
+  return vote as Vote;
+}
+
+export function handleVoteCast(event: VoteCast): void {
+  let proposal = getOrCreateProposal(event.params.proposalId.toString());
+  let voteId = event.params.voter
+    .toHexString()
+    .concat('-')
+    .concat(event.params.proposalId.toString());
+  let vote = getOrCreateVote(voteId);
+  let voter = getOrCreateDelegateWithNullOption(event.params.voter.toHexString(), false);
+
+  // Check if the voter was a delegate already accounted for, if not we should log an error
+  // since it shouldn't be possible for a delegate to vote without first being 'created'
+  if (voter == null) {
+    log.error('Delegate {} not found on VoteCast. tx_hash: {}', [
+      event.params.voter.toHexString(),
+      event.transaction.hash.toHexString(),
+    ]);
+  }
+
+  // Create it anyway since we will want to account for this event data, even though it should've never happened
+  voter = getOrCreateDelegate(event.params.voter.toHexString());
+
+  vote.proposal = proposal.id;
+  vote.voter = voter.id;
+  vote.votesRaw = event.params.votes;
+  vote.votes = event.params.votes;
+  vote.support = event.params.support == 1;
+  vote.supportDetailed = event.params.support;
+  vote.nouns = voter.nounsRepresented;
+  vote.blockNumber = event.block.number;
+
+  if (event.params.reason != '') {
+    vote.reason = event.params.reason;
+  }
+
+  vote.save();
+
+  if (event.params.support == 0) {
+    proposal.againstVotes = proposal.againstVotes.plus(event.params.votes);
+  } else if (event.params.support == 1) {
+    proposal.forVotes = proposal.forVotes.plus(event.params.votes);
+  } else if (event.params.support == 2) {
+    proposal.abstainVotes = proposal.abstainVotes.plus(event.params.votes);
+  }
+
+  const dqParams = getOrCreateDynamicQuorumParams();
+  const usingDynamicQuorum =
+    dqParams.dynamicQuorumStartBlock !== null &&
+    dqParams.dynamicQuorumStartBlock!.lt(proposal.createdBlock);
+
+  if (usingDynamicQuorum) {
+    proposal.quorumVotes = dynamicQuorumVotes(
+      proposal.againstVotes,
+      proposal.totalSupply,
+      proposal.minQuorumVotesBPS,
+      proposal.maxQuorumVotesBPS,
+      proposal.quorumCoefficient,
+    );
+  }
+
+  if (proposal.status == STATUS_PENDING) {
+    proposal.status = STATUS_ACTIVE;
+  }
+  proposal.save();
+}

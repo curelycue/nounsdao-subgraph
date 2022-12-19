@@ -4,3 +4,60 @@ type ExampleEntity @entity {
   oldAdmin: Bytes! # address
   newAdmin: Bytes! # address
 }
+
+type Delegate @entity {
+  "A Delegate is any address that has been delegated with voting tokens by a token holder, id is the blockchain address of said delegate"
+  id: ID!
+
+  "Amount of votes delegated to this delegate to be used on proposal votings expressed in the smallest unit of the Nouns ERC721 Token"
+  delegatedVotesRaw: BigInt!
+
+  "Amount of votes delegated to this delegate to be used on proposal votings expressed as a BigInt normalized value for the Nouns ERC721 Token"
+  delegatedVotes: BigInt!
+
+  tokenHoldersRepresentedAmount: Int!
+
+  "Token holders that this delegate represents"
+  tokenHoldersRepresented: [Account!]! @derivedFrom(field: "delegate")
+
+  "Nouns that this delegate represents"
+  nounsRepresented: [Noun!]!
+
+  "Votes that a delegate has made in different proposals"
+  votes: [Vote!]! @derivedFrom(field: "voter")
+
+  "Proposals that the delegate has created"
+  proposals: [Proposal!]! @derivedFrom(field: "proposer")
+}
+
+type Vote @entity {
+  "Delegate ID + Proposal ID"
+  id: ID!
+
+  "Whether the vote is in favour of the proposal"
+  support: Boolean!
+
+  "The integer support value: against (0), for (1), or abstain (2)"
+  supportDetailed: Int!
+
+  "Amount of votes in favour or against expressed in the smallest unit of the Nouns ERC721 Token"
+  votesRaw: BigInt!
+
+  "Amount of votes in favour or against expressed as a BigInt normalized value for the Nouns ERC721 Token"
+  votes: BigInt!
+
+  "The optional vote reason"
+  reason: String
+
+  "Delegate that emitted the vote"
+  voter: Delegate!
+
+  "The Nouns used to vote"
+  nouns: [Noun!]
+
+  "Proposal that is being voted on"
+  proposal: Proposal!
+
+  "Block number of vote"
+  blockNumber: BigInt!
+}
