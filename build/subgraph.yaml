@@ -1,6 +1,6 @@
 specVersion: 0.0.5
 schema:
-  file: ./schema.graphql
+  file: schema.graphql
 dataSources:
   - kind: ethereum
     name: NounsDAOLogicV2
@@ -17,8 +17,8 @@ dataSources:
         - VoteCast
       abis:
         - name: NounsDAOLogicV2
-          file: ./abis/NounsDAOLogicV2.json
+          file: NounsDAOLogicV2/abis/NounsDAOLogicV2.json
       eventHandlers:
         - event: VoteCast(indexed address,uint256,uint8,uint256,string)
           handler: handleNewVote
-      file: ./src/nouns-dao-logic-v-2.ts
+      file: NounsDAOLogicV2/NounsDAOLogicV2.wasm
